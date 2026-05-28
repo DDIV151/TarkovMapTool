@@ -284,27 +284,44 @@ namespace TarkovMapTool
             float screenX = (mapPx - srcX) * zoomScale;
             float screenY = (mapPy - srcY) * zoomScale;
 
-            int size = 10;
-            g.FillEllipse(Brushes.LimeGreen, screenX - size / 2f, screenY - size / 2f, size, size);
-            g.DrawEllipse(Pens.Black, screenX - size / 2f, screenY - size / 2f, size, size);
+            float baseArrowLen = 28f;        // 基础长度
+            float baseArrowWidth = 10f;      // 基础宽度
+            float arrowLen = Math.Max(14f, baseArrowLen * zoomScale);   // 最小长度
+            float arrowWidth = Math.Max(5f, baseArrowWidth * zoomScale); // 最小宽度
 
-            float arrowLen = 25 * zoomScale;
-            float arrowDx = arrowLen * (float)Math.Sin(playerYaw);
-            float arrowDy = -arrowLen * (float)Math.Cos(playerYaw);
-            PointF arrowTip = new PointF(screenX + arrowDx, screenY + arrowDy);
-            using (Pen redPen = new Pen(Color.Red, 2))
-                g.DrawLine(redPen, screenX, screenY, arrowTip.X, arrowTip.Y);
-            float wingLen = 6 * zoomScale;
-            float backAngle = (float)Math.Atan2(-arrowDy, -arrowDx);
-            PointF wing1 = new PointF(arrowTip.X + wingLen * (float)Math.Cos(backAngle - Math.PI / 6),
-                                       arrowTip.Y + wingLen * (float)Math.Sin(backAngle - Math.PI / 6));
-            PointF wing2 = new PointF(arrowTip.X + wingLen * (float)Math.Cos(backAngle + Math.PI / 6),
-                                       arrowTip.Y + wingLen * (float)Math.Sin(backAngle + Math.PI / 6));
-            g.DrawLine(Pens.Red, arrowTip, wing1);
-            g.DrawLine(Pens.Red, arrowTip, wing2);
+            // 箭头尖端方向（playerYaw），注意屏幕Y轴向下
+            float tipX = screenX + arrowLen * (float)Math.Sin(playerYaw);
+            float tipY = screenY - arrowLen * (float)Math.Cos(playerYaw);
 
-            g.DrawString($"{currentMap}  X:{playerX:F1} Z:{playerZ:F1}  Zoom:{zoomScale:P0}",
-                SystemFonts.DefaultFont, Brushes.White, 5, 5);
+            // 箭头尾部中心点（玩家位置）
+            float backX = screenX;
+            float backY = screenY;
+
+            // 垂直于朝向的两个方向，用于绘制翼端
+            float perp = playerYaw + (float)Math.PI / 2;
+            float wing1X = backX + arrowWidth * (float)Math.Sin(perp);
+            float wing1Y = backY - arrowWidth * (float)Math.Cos(perp);
+            float wing2X = backX - arrowWidth * (float)Math.Sin(perp);
+            float wing2Y = backY + arrowWidth * (float)Math.Cos(perp);
+
+            // 创建箭头路径（三角形：尖端 + 两个翼端）
+            using (GraphicsPath arrowPath = new GraphicsPath())
+            {
+                arrowPath.AddPolygon(new PointF[]
+                {
+        new PointF(tipX, tipY),
+        new PointF(wing1X, wing1Y),
+        new PointF(wing2X, wing2Y)
+                });
+
+                // 填充亮黄色
+                using (Brush fillBrush = new SolidBrush(Color.Yellow))
+                    g.FillPath(fillBrush, arrowPath);
+
+                // 黑色描边（线宽2）
+                using (Pen outlinePen = new Pen(Color.Black, 2))
+                    g.DrawPath(outlinePen, arrowPath);
+            }
         }
 
         protected override void Dispose(bool disposing)
